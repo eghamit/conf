@@ -1,0 +1,115 @@
+{
+  "geometry": {
+    "Lx_nm": 200.0,
+    "material": "silicon",
+    "Na_cm3": 1000000000000000.0,
+    "Nd_cm3": 1000000000000000.0,
+    "device_depth_m": 1e-06,
+    "kT_eV": 0.025851
+  },
+  "thickness_scan": [
+    {
+      "tb_nm": 3,
+      "dE10_meV": 161.21,
+      "dE10_over_kT": 6.236,
+      "E_subbands_eV": [
+        -0.40237,
+        -0.24115,
+        0.24872,
+        1.08619,
+        2.30347,
+        3.94687
+      ],
+      "Lambda_min": -0.0021,
+      "Lambda_max": 0.0047,
+      "n_wall_over_center": 1.0039
+    },
+    {
+      "tb_nm": 5,
+      "dE10_meV": 58.04,
+      "dE10_over_kT": 2.245,
+      "E_subbands_eV": [
+        -0.40237,
+        -0.34433,
+        -0.16798,
+        0.13351,
+        0.57173,
+        1.16336
+      ],
+      "Lambda_min": -0.1012,
+      "Lambda_max": 0.0986,
+      "n_wall_over_center": 1.2132
+    },
+    {
+      "tb_nm": 8,
+      "dE10_meV": 22.67,
+      "dE10_over_kT": 0.877,
+      "E_subbands_eV": [
+        -0.40237,
+        -0.3797,
+        -0.31081,
+        -0.19304,
+        -0.02186,
+        0.20924
+      ],
+      "Lambda_min": -0.313,
+      "Lambda_max": 0.2834,
+      "n_wall_over_center": 1.7911
+    },
+    {
+      "tb_nm": 12,
+      "dE10_meV": 10.06,
+      "dE10_over_kT": 0.389,
+      "E_subbands_eV": [
+        -0.40237,
+        -0.39231,
+        -0.36196,
+        -0.31081,
+        -0.23797,
+        -0.14219
+      ],
+      "Lambda_min": -0.298,
+      "Lambda_max": 0.408,
+      "n_wall_over_center": 1.9938
+    }
+  ],
+  "detail_5nm": {
+    "subband_energies_eV": [
+      -0.50237,
+      -0.44433,
+      -0.26798,
+      0.03351,
+      0.47173,
+      1.06336
+    ],
+    "dE10_meV": 58.04,
+    "Lambda_min": -0.1012,
+    "Lambda_max": 0.0984,
+    "sweep_time_classical_s": 9.68,
+    "sweep_time_quantum_s": 15.16,
+    "nodes": 833,
+    "elements": 1536,
+    "ideality_classical": 1.162,
+    "ideality_quantum": 1.162,
+    "I_cl_0.4V_A": 6.387517585000983e-11,
+    "I_qm_0.4V_A": 6.386698992996766e-11,
+    "ratio_0.4V": 0.9999,
+    "I_cl_0.6V_A": 1.9453326596389992e-08,
+    "I_qm_0.6V_A": 1.945051124598085e-08,
+    "ratio_0.6V": 0.9999,
+    "I_cl_0.8V_A": 1.5567038947218325e-07,
+    "I_qm_0.8V_A": 1.556476439274163e-07,
+    "ratio_0.8V": 0.9999,
+    "n_transverse_modulation_pct": 19.16,
+    "classical_transverse_flat": true,
+    "charge_conserved_rel_err": 1.627362667301485e-05
+  },
+  "mos_demo": {
+    "T_si_nm": 50.0,
+    "T_ox_nm": 3.0,
+    "Na_cm3": 1e+17,
+    "p_surface_acc_cm3": 5.17281462291143e+19,
+    "n_surface_inv_cm3": 1.5283281586288316e+20,
+    "inversion_over_depletion": 510362922057.0862
+  }
+}

@@ -1,5 +1,5 @@
 %% ICNDEMAC-2027 -- Track 2: Nano-Electronics
-%% IEEE conference paper (IEEEtran). Build with pdflatex (x2) + bibtex, or Overleaf.
+%% IEEE conference paper (IEEEtran). Build with pdflatex (x2), or Overleaf.
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
 
@@ -50,8 +50,8 @@ $1.6\times10^{-5}$, leaves the ideal-diode terminal current essentially unchange
 solver exactly when disabled. Metal--oxide--semiconductor gate control
 (accumulation $\rightarrow$ depletion $\rightarrow$ inversion) is reproduced on
 the same framework. The solver is validated against analytic semiconductor
-physics and provides a compact, extensible platform for quantum-corrected TCAD of
-scaled nanoelectronic devices.
+physics and provides a compact, transparent and extensible platform for
+quantum-corrected TCAD of scaled nanoelectronic devices.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -61,45 +61,144 @@ confinement, ultra-thin-body, TCAD, nanoelectronics, coupled Newton.
 
 \section{Introduction}
 \IEEEPARstart{T}{he} continued scaling of CMOS technology into ultra-thin-body
-silicon-on-insulator (UTB-SOI), FinFET and gate-all-around geometries places
-device dimensions on the order of the electron de Broglie wavelength. In such
-bodies the transverse motion of carriers is quantised into subbands: the charge
-peak is set back from the confining walls, the lowest allowed energy is raised,
-and the electrostatics that determine threshold voltage and inversion-layer
-capacitance depart from the classical prediction~\cite{ando1982,sternhoward}.
-Technology computer-aided design (TCAD) for such devices therefore needs a
-quantum-corrected transport model that remains numerically robust and
-inexpensive enough for routine use.
+silicon-on-insulator (UTB-SOI), FinFET and gate-all-around (GAA) nanosheet
+geometries places critical device dimensions on the order of the electron de
+Broglie wavelength~\cite{colinge,irds}. In such bodies the transverse motion of
+carriers is quantised into discrete subbands: the charge peak is set back from
+the confining walls, the lowest allowed energy is raised by confinement, and the
+electrostatics that determine threshold voltage, inversion-layer capacitance and
+gate control depart measurably from the classical
+prediction~\cite{ando1982,sternhoward,stern1972}. Technology computer-aided design
+(TCAD) for such devices therefore needs a quantum-corrected transport model that
+is at once physically faithful, numerically robust, and inexpensive enough for
+routine design-space exploration.
 
-The drift-diffusion (DD) system~\cite{selberherr} remains the workhorse of device
-simulation, but on its own it treats carriers as a point-like continuum whose
-density follows the electrostatic potential instantaneously. A widely used and
-computationally attractive remedy is to retain the DD transport equations along
-the device while adding a self-consistent Schr\"odinger--Poisson (S--P) correction
-that captures confinement across the thin dimension~\cite{sternhoward,trellakis}.
-This paper presents a compact, open-source implementation of exactly this
-strategy on an unstructured finite-element mesh, and characterises the resulting
-quantum corrections for scaled silicon devices.
+The drift-diffusion (DD) system~\cite{selberherr,vanroosbroeck} remains the
+workhorse of device simulation because it is compact, well understood, and
+inexpensive. On its own, however, it treats carriers as a point-like continuum
+whose density follows the electrostatic potential instantaneously through
+Boltzmann or Fermi--Dirac statistics; it therefore cannot represent the subband
+quantisation and density set-back that dominate scaled-device electrostatics. A
+range of remedies has been proposed, from analytic threshold shifts and
+density-gradient corrections to full self-consistent Schr\"odinger--Poisson (S--P)
+and non-equilibrium Green's-function (NEGF) transport~\cite{vandort,ancona,
+trellakis,datta}. Among these, the self-consistent S--P correction---retaining DD
+transport along the device while quantising the thin confinement direction---is
+the most widely used compromise between physical accuracy and computational cost.
 
-\textit{Contributions.} (i) A two-dimensional, finite-element,
-quasi-Fermi-potential DD solver with a fully-coupled Newton scheme built on the
-exact analytic $9\times9$ element Jacobian; (ii) a self-consistent, charge-conserving
-S--P correction that enters the DD assembly as an additive quantum potential and
-therefore leaves the inner Jacobian---and its quadratic convergence---unchanged;
-(iii) a quantitative study of quantum-confinement scaling in silicon
-ultra-thin-body junctions, and a demonstration of MOS gate control on the same
-framework; and (iv) validation against analytic semiconductor physics.
+This paper presents a compact, open-source implementation of exactly this strategy
+on an unstructured finite-element (FE) mesh, and characterises the resulting
+quantum corrections for scaled silicon devices. The remainder of the paper is
+organised as follows. Section~\ref{sec:related} reviews the literature on device
+simulation and quantum corrections. Section~\ref{sec:gap} states the research gap
+and our contributions. Section~\ref{sec:method} details the numerical formulation.
+Section~\ref{sec:results} presents validation and results, and
+Section~\ref{sec:disc} discusses limitations and future work.
+
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Classical drift-diffusion device simulation}
+The DD model descends from the van~Roosbroeck equations~\cite{vanroosbroeck} and
+was placed on a firm numerical footing by Gummel's decoupled iteration
+scheme~\cite{gummel} and the Scharfetter--Gummel current
+discretisation~\cite{scharfetter}, which stabilises the exponentially varying
+carrier densities. Selberherr's monograph~\cite{selberherr} remains the standard
+reference, and modern practice---fully-coupled Newton solves with analytic
+Jacobians, robust continuation and adaptive meshing---is surveyed in
+\cite{bank,vasileska}. De~Mari's intrinsic scaling~\cite{demari} renders the
+unknowns $O(1)$ and underpins most implementations, including ours. Commercial
+TCAD suites such as Synopsys Sentaurus and Silvaco Atlas~\cite{sentaurus} embody
+this technology but are closed and expensive, which motivates transparent
+open-source alternatives for research and teaching.
+
+\subsection{Quantum-confinement corrections}
+Quantum corrections to DD span a hierarchy of increasing rigour and cost.
+\emph{Analytic threshold models}, such as the van~Dort correction~\cite{vandort},
+add a doping- and field-dependent band-edge shift to reproduce the measured
+threshold-voltage increase in inverted MOSFETs without solving any eigenproblem;
+they are cheap but device- and regime-specific. \emph{Density-gradient} (DG) and
+quantum-hydrodynamic methods~\cite{ancona,hansch,jungel} add a gradient term
+derived from a Bohm/Wigner expansion to the density equation; they capture
+confinement smoothly and are mesh-local, but require calibration and can be stiff.
+\emph{Self-consistent Schr\"odinger--Poisson} methods solve the effective-mass
+Schr\"odinger equation for the confined subbands and couple the resulting quantum
+density back into Poisson's equation~\cite{sternhoward,stern1972,laux,trellakis}.
+Stern's inversion-layer calculations~\cite{stern1972} and the two-dimensional
+predictor--corrector scheme of Trellakis \emph{et al.}~\cite{trellakis} are
+canonical; Pirovano \emph{et al.}~\cite{pirovano} applied 2-D quantum corrections
+to nanoscale MOSFETs. At the top of the hierarchy, NEGF quantum
+transport~\cite{datta,lundstrom} treats ballistic and tunnelling transport but at
+a computational cost that is prohibitive for routine multi-bias, multi-geometry
+studies. Our work sits deliberately at the S--P level: quasi-equilibrium subbands
+quantised across the thin direction with classical transport along the device.
+
+\subsection{Numerical coupling and discretisation}
+How the quantum correction is coupled to the transport solve determines both
+accuracy and robustness. Gummel-type outer iterations that recompute the quantum
+potential and under-relax it are simple and widely used~\cite{trellakis}, whereas
+fully-coupled Newton schemes converge faster but require the quantum term's
+Jacobian contributions. Most implementations use finite differences on structured
+grids; finite-element formulations~\cite{vasileska} handle non-planar
+FinFET/GAA geometries more naturally but are less common in open tools. A recurring
+practical difficulty is that adding the quantum density can destroy the analytic
+Jacobian and hence the quadratic convergence of the transport Newton solve. Our
+formulation avoids this by freezing a charge-conserving additive quantum potential
+inside each Newton solve, so the exact analytic Jacobian is preserved and only an
+outer fixed-point loop is added.
+
+\subsection{Open-source device simulators}
+Open tools such as Archimedes, DEVSIM, Genius, and the nanoHUB codes have lowered
+the barrier to device simulation, and NEGF-oriented packages (NEMO5, QuantumATK's
+academic lineage) target atomistic transport. Nonetheless, a compact,
+readable, finite-element DD solver that integrates a self-consistent S--P
+correction with an exact analytic Jacobian---and bundles heterojunctions,
+MOS/Schottky contacts and Fermi--Dirac statistics on the same mesh---remains
+comparatively rare. This is the niche the present solver fills.
+
+\section{Research Gap and Contributions}
+\label{sec:gap}
+The literature above exposes a specific gap. Analytic and density-gradient
+corrections are cheap but empirical; NEGF is rigorous but expensive; and existing
+self-consistent S--P implementations are often (i) finite-difference and
+structured-grid based, limiting geometric flexibility; (ii) coupled in a way that
+sacrifices the analytic Jacobian and thus quadratic Newton convergence; or (iii)
+embedded in closed commercial tools. What is missing is a \emph{compact,
+open-source, finite-element} DD solver in which the S--P correction is coupled
+\emph{without} degrading the exact-Jacobian coupled-Newton core, and in which the
+same code path also supports the heterojunction, oxide/gate and degenerate-statistics
+physics needed for real scaled devices.
+
+\noindent\textbf{How this work fills the gap.} We contribute:
+\begin{itemize}
+\item a two-dimensional, finite-element, quasi-Fermi-potential DD solver with a
+fully-coupled Newton scheme built on the exact analytic $9\times9$ element
+Jacobian (Section~\ref{sec:ddcore});
+\item a self-consistent, \emph{charge-conserving} S--P correction that enters the
+DD assembly as a frozen additive quantum potential, leaving the inner Jacobian---and
+its quadratic convergence---provably unchanged, so quantum physics costs only an
+outer fixed-point loop (Section~\ref{sec:sp});
+\item a quantitative study of quantum-confinement scaling in silicon
+ultra-thin-body junctions that locates the $k_BT$ crossover near an $8$~nm body,
+and a demonstration of MOS gate control on the same framework
+(Section~\ref{sec:results}); and
+\item validation against analytic semiconductor physics, with an open,
+reproducible implementation (MIT licence).
+\end{itemize}
 
 \section{Numerical Formulation}
+\label{sec:method}
 
 \subsection{Drift-diffusion core}
-The steady state is described by the three coupled equations for the normalised
+\label{sec:ddcore}
+The steady state is described by three coupled equations for the normalised
 electrostatic potential $u=\psi/V_T$ and the electron and hole quasi-Fermi
-potentials $v=\phi_n/V_T$, $w=\phi_p/V_T$, using De Mari intrinsic
+potentials $v=\phi_n/V_T$, $w=\phi_p/V_T$, using De~Mari intrinsic
 scaling~\cite{demari} so that every unknown is $O(1)$. Carrier densities follow
-algebraically from Boltzmann statistics, $n=n_i e^{\,u-v}$ and $p=n_i e^{\,w-u}$.
-With $N_i$ the linear (P1) triangle shape functions and $C=(N_D-N_A)/n_i$ the
-scaled net doping, the Galerkin weak forms are
+algebraically from Boltzmann statistics, $n=n_i e^{\,u-v}$ and $p=n_i e^{\,w-u}$
+(Fermi--Dirac is an option, Section~\ref{sec:fd}). With $N_i$ the linear (P1)
+triangle shape functions and $C=(N_D-N_A)/n_i$ the scaled net doping, the Galerkin
+weak forms are
 \begin{align}
 R_i^{u} &= \int_\Omega\!\big(\nabla N_i\!\cdot\!\nabla u + N_i(n-p-C)\big)\,d\Omega,\\
 R_i^{v} &= \int_\Omega \mu_n\,n\,\nabla N_i\!\cdot\!\nabla v\;d\Omega,\\
@@ -114,14 +213,14 @@ whose block structure is
 J=\begin{bmatrix} K_{uu} & K_{uv} & K_{uw}\\ K_{vu} & K_{vv} & 0\\ K_{wu} & 0 & K_{ww}\end{bmatrix},
 \end{equation}
 with, e.g., $(K_{uu})_{ik}=\int\nabla N_i\!\cdot\!\nabla N_k\,d\Omega
-+\int N_iN_k\big(e^{u-v}+e^{w-u}\big)\,d\Omega$. Per-step damping caps the largest
-increment so the exponential density terms cannot overflow from a cold start.
-Optional Shockley--Read--Hall and Auger recombination, per-region
-heterojunction band offsets (Anderson's rule), Fermi--Dirac statistics, and
-insulator/gate (MOS) and Schottky contacts are supported but are secondary to
-the quantum correction studied here.
++\int N_iN_k\big(e^{u-v}+e^{w-u}\big)\,d\Omega$ and
+$(K_{uv})_{ik}=-\int N_iN_k e^{u-v}\,d\Omega$. Per-step damping caps the largest
+increment so the exponential density terms cannot overflow from a cold start. A
+thermal-equilibrium nonlinear-Poisson solve ($v=w=0$) provides the initial guess,
+and each bias point warm-starts from the previous solution.
 
 \subsection{Self-consistent Schr\"odinger--Poisson correction}
+\label{sec:sp}
 Confinement in a thin body is a one-dimensional effect across the thin dimension.
 As in standard device TCAD, the mesh is cut into slices along the confinement
 direction and, on each slice, the single-band effective-mass problem is solved by
@@ -148,16 +247,30 @@ An outer Schr\"odinger--Poisson (Gummel) loop recomputes $\Lambda$ from the upda
 potential, under-relaxes it, and iterates to a tolerance; with $\Lambda\equiv0$ the
 scheme reproduces the classical solver bit-for-bit. This is a self-consistent
 predictor--corrector S--P scheme with quasi-equilibrium subbands quantised across
-one direction and transported classically along the device; it is not a full
-non-equilibrium (NEGF) quantum-transport model.
+one direction and transported classically along the device; it is not a full NEGF
+model, and is best understood as the accuracy/cost operating point between
+density-gradient and NEGF.
+
+\subsection{Extended device physics}
+\label{sec:fd}
+On the same mesh the solver supports optional Shockley--Read--Hall and Auger
+recombination (with exact analytic rate derivatives), per-region heterojunction
+band offsets via Anderson's electron-affinity rule, insulator (oxide) regions and
+insulated metal-gate contacts for MOS structures, Schottky contacts, and
+Fermi--Dirac statistics for degenerate layers (entering as a degeneracy shift
+refreshed by the same outer loop and vanishing in the non-degenerate limit). These
+are essential for representing the source/drain, gate stack and channel of a real
+scaled transistor.
 
 \section{Results and Discussion}
+\label{sec:results}
 All results use a silicon $p$--$n$ junction, $200$~nm long along transport
 ($N_A=N_D=10^{15}\,\mathrm{cm^{-3}}$), with the body thickness $t_b$ across the
 confinement direction as the scaling variable; material parameters (permittivity,
 affinity, gap, mobilities, effective masses) are read from an editable material
-file. The $5$~nm reference device has $833$ nodes / $1536$ triangles; a full
-bias sweep runs in $9.7$~s (classical) and $15.2$~s (S--P) on a single core.
+file. The $5$~nm reference device has $833$ nodes / $1536$ triangles; a full bias
+sweep runs in $9.7$~s (classical) and $15.2$~s (S--P) on a single core, i.e. the
+quantum physics adds only a $\sim\!1.6\times$ overhead.
 
 \subsection{Validation against analytic physics}
 The classical core reproduces textbook junction physics: the built-in potential
@@ -166,7 +279,8 @@ equilibrium to machine precision, the forward $I$--$V$ is exponential with
 ideality factor $\approx1$, and the currents extracted at the two contacts are
 equal and opposite (conservation). Enabling the S--P correction leaves all
 equilibrium identities intact because the per-slice renormalisation is
-charge-conserving.
+charge-conserving---a direct check that the coupling does not perturb the
+well-posed electrostatics.
 
 \subsection{Quantum-confinement scaling}
 Fig.~\ref{fig:scaling} shows the ground-state subband spacing $E_1-E_0$ as the
@@ -178,9 +292,10 @@ energy $k_BT=25.9$~meV near $t_b\approx8$~nm: below this thickness a single
 subband dominates the occupation and quantum confinement is strong, whereas above
 it many subbands are thermally populated and the body behaves quasi-classically.
 This crossover is the practical boundary at which a quantum correction becomes
-mandatory for accurate electrostatics. Fig.~\ref{fig:ladder} shows the computed
-electron subband ladder for the $5$~nm device; the eigenvalues are correctly
-ordered and widely spaced relative to $k_BT$.
+mandatory for accurate electrostatics, and it coincides with the body thicknesses
+targeted by advanced UTB-SOI and nanosheet nodes~\cite{colinge,irds}.
+Fig.~\ref{fig:ladder} shows the computed electron subband ladder for the $5$~nm
+device; the eigenvalues are correctly ordered and widely spaced relative to $k_BT$.
 
 \begin{figure}[!t]
 \centering
@@ -218,18 +333,18 @@ $5$~nm body. The ground-to-first spacing is $58$~meV, well above $k_BT$.}
 \subsection{Charge-conserving redistribution and terminal current}
 Because the transverse electrostatic field is weak in a symmetric junction, the
 classical transverse density profile is essentially flat. The S--P correction
-modulates it by up to $19\%$ (Fig.~\ref{fig:redist}) while conserving the
-slice charge to a relative error of $1.6\times10^{-5}$: the quantum potential
+modulates it by up to $19\%$ (Fig.~\ref{fig:redist}) while conserving the slice
+charge to a relative error of $1.6\times10^{-5}$: the quantum potential
 $\Lambda_n$ spans $[-0.10,+0.10]$ for the $5$~nm body. This redistribution is
 precisely the quantum electrostatics that shifts inversion-layer capacitance in a
 gated device. In the ungated diode, however, the terminal $I$--$V$ is left almost
 unchanged: the extracted ideality factor is $1.16$ both with and without the
-correction, and the forward current agrees to within $0.01\%$ over
-$0.4$--$0.8$~V (Fig.~\ref{fig:iv}). This cleanly separates the two roles of the
-correction---a first-order effect on the charge distribution and capacitance, but
-a negligible effect on the ideal-diffusion current of an unconfined-transport
-junction---and confirms that the coupled solve remains rectifying and
-current-conserving with quantum physics enabled.
+correction, and the forward current agrees to within $0.01\%$ over $0.4$--$0.8$~V
+(Fig.~\ref{fig:iv}). This cleanly separates the two roles of the correction---a
+first-order effect on the charge distribution and capacitance, but a negligible
+effect on the ideal-diffusion current of an unconfined-transport junction---and
+confirms that the coupled solve remains rectifying and current-conserving with
+quantum physics enabled.
 
 \begin{figure}[!t]
 \centering
@@ -259,7 +374,9 @@ $t_{ox}=3$~nm): the silicon surface passes through accumulation
 inversion (surface electrons $1.5\times10^{20}\,\mathrm{cm^{-3}}$), an
 inversion-to-depletion electron ratio exceeding $10^{11}$. This confirms that the
 solver captures the gate electrostatics of the MOS building block, onto which the
-quantum inversion-layer correction of the previous sections directly applies.
+quantum inversion-layer correction of the previous sections directly applies, and
+provides the substrate for future quantum-corrected threshold and
+capacitance--voltage studies.
 
 \begin{figure}[!t]
 \centering
@@ -270,53 +387,115 @@ same finite-element framework.}
 \label{fig:mos}
 \end{figure}
 
-\subsection{Discussion}
-The correction is built and normalised per slice, so it is bounded and stable,
-and is strongest exactly where it should be---thin, strongly-confined
-bodies---fading as the body thickens and the subband spacing drops below $k_BT$,
-consistent with Fig.~\ref{fig:scaling}. Slices are exact on structured/aligned
-meshes; on a fully unstructured mesh, slices that cannot be formed are left
-classical. Because the quantum potential enters as a frozen additive shift, the
-method adds only an outer fixed-point loop around an otherwise unchanged
-quadratically-convergent Newton solve---a favourable cost trade-off for routine
-TCAD. The present model is a quasi-equilibrium, single-band scheme; multi-band
-$k\!\cdot\!p$ subbands, thermionic-emission heterointerface transport, and
-polarisation charge for wide-gap devices are natural extensions.
+\section{Discussion, Limitations and Future Work}
+\label{sec:disc}
+The correction is built and normalised per slice, so it is bounded and stable, and
+is strongest exactly where it should be---thin, strongly-confined bodies---fading
+as the body thickens and the subband spacing drops below $k_BT$, consistent with
+Fig.~\ref{fig:scaling}. Because the quantum potential enters as a frozen additive
+shift, the method adds only an outer fixed-point loop around an otherwise
+unchanged quadratically-convergent Newton solve---a favourable cost trade-off
+($\sim\!1.6\times$ here) for routine TCAD, and far below the cost of NEGF.
+
+Several limitations bound the present model and motivate future work.
+(i) It is a \emph{single-band, effective-mass, quasi-equilibrium} scheme: valley
+degeneracy, non-parabolicity and multi-band $k\!\cdot\!p$ coupling of the valence
+band are not resolved, so hole confinement in particular is approximate.
+(ii) Confinement is quantised across \emph{one} direction; corner and 2-D
+confinement in narrow FinFET/GAA cross-sections would require a genuinely 2-D
+Schr\"odinger solve on the cross-section. (iii) Slices are exact only on
+structured/aligned meshes; on fully unstructured meshes, slices that cannot be
+formed are left classical, so mesh generation must respect the confinement
+direction. (iv) Transport remains classical drift-diffusion, so source-to-drain
+tunnelling and ballistic effects in sub-$5$~nm channels are outside scope and
+would need NEGF. (v) The quantum correction principally reshapes the charge and
+capacitance; quantitative threshold-voltage and $C$--$V$ shifts for a full gated
+transistor were not extracted here and are the natural next validation step,
+ideally against measured or NEGF data. Planned extensions include multi-valley and
+$k\!\cdot\!p$ subbands, 2-D cross-sectional confinement for nanosheet geometries,
+thermionic-emission heterointerface transport, and a density-gradient option for
+comparison.
 
 \section{Conclusion}
 We have presented and validated an open-source, finite-element, self-consistent
 Schr\"odinger--Poisson drift-diffusion solver for quantum-confinement effects in
 scaled nanoelectronic devices. The coupled Newton core retains an exact analytic
 Jacobian and quadratic convergence, and the charge-conserving quantum correction
-adds only an outer loop. For silicon ultra-thin bodies the ground subband spacing
-crosses $k_BT$ near $8$~nm, delimiting the strong-confinement regime; the
-correction redistributes carriers by up to $19\%$ with negligible impact on the
-ideal-diode current, and MOS gate control is reproduced on the same platform. The
-tool offers a compact, extensible basis for quantum-corrected simulation of
-emerging nanoscale devices.
+adds only an outer loop, filling a gap between empirical density-gradient
+corrections and costly NEGF transport. For silicon ultra-thin bodies the ground
+subband spacing crosses $k_BT$ near $8$~nm, delimiting the strong-confinement
+regime; the correction redistributes carriers by up to $19\%$ with negligible
+impact on the ideal-diode current, and MOS gate control is reproduced on the same
+platform. The tool offers a compact, transparent and extensible basis for
+quantum-corrected simulation of emerging nanoscale devices.
 
 \section*{Software and Reproducibility}
 The solver and every example used to generate the figures in this paper are
 open-source (MIT licence). All results were produced with the bundled
-structured-mesh device demonstrations.
+structured-mesh device demonstrations and are regenerated by the accompanying
+script.
 
-\begin{thebibliography}{1}
-\bibitem{selberherr} S.~Selberherr, \emph{Analysis and Simulation of Semiconductor
-Devices}. Vienna: Springer-Verlag, 1984.
+\begin{thebibliography}{99}
+\bibitem{colinge} J.-P.~Colinge, Ed., \emph{FinFETs and Other Multi-Gate
+Transistors}. New York: Springer, 2008.
+\bibitem{irds} International Roadmap for Devices and Systems (IRDS), ``More Moore,''
+IEEE, 2022.
 \bibitem{ando1982} T.~Ando, A.~B.~Fowler, and F.~Stern, ``Electronic properties of
 two-dimensional systems,'' \emph{Rev. Mod. Phys.}, vol.~54, no.~2, pp.~437--672, 1982.
 \bibitem{sternhoward} F.~Stern and W.~E.~Howard, ``Properties of semiconductor
 surface inversion layers in the electric quantum limit,'' \emph{Phys. Rev.},
 vol.~163, no.~3, pp.~816--835, 1967.
-\bibitem{demari} A.~De Mari, ``An accurate numerical steady-state one-dimensional
-solution of the p-n junction,'' \emph{Solid-State Electron.}, vol.~11, no.~1,
-pp.~33--58, 1968.
+\bibitem{stern1972} F.~Stern, ``Self-consistent results for $n$-type Si inversion
+layers,'' \emph{Phys. Rev. B}, vol.~5, no.~12, pp.~4891--4899, 1972.
+\bibitem{selberherr} S.~Selberherr, \emph{Analysis and Simulation of Semiconductor
+Devices}. Vienna: Springer-Verlag, 1984.
+\bibitem{vanroosbroeck} W.~van~Roosbroeck, ``Theory of the flow of electrons and
+holes in germanium and other semiconductors,'' \emph{Bell Syst. Tech. J.},
+vol.~29, no.~4, pp.~560--607, 1950.
+\bibitem{vandort} M.~J.~van~Dort, P.~H.~Woerlee, and A.~J.~Walker, ``A simple model
+for quantisation effects in heavily-doped silicon MOSFETs at inversion
+conditions,'' \emph{Solid-State Electron.}, vol.~37, no.~3, pp.~411--414, 1994.
+\bibitem{ancona} M.~G.~Ancona and G.~J.~Iafrate, ``Quantum correction to the
+equation of state of an electron gas in a semiconductor,'' \emph{Phys. Rev. B},
+vol.~39, no.~13, pp.~9536--9540, 1989.
+\bibitem{hansch} W.~H\"ansch, Th.~Vogelsang, R.~Kircher, and M.~Orlowski,
+``Carrier transport near the Si/SiO$_2$ interface of a MOSFET,''
+\emph{Solid-State Electron.}, vol.~32, no.~10, pp.~839--849, 1989.
+\bibitem{jungel} A.~J\"ungel, \emph{Transport Equations for Semiconductors}
+(Lecture Notes in Physics 773). Berlin: Springer, 2009.
 \bibitem{trellakis} A.~Trellakis, A.~T.~Galick, A.~Pacelli, and U.~Ravaioli,
 ``Iteration scheme for the solution of the two-dimensional Schr\"odinger--Poisson
 equations in quantum structures,'' \emph{J. Appl. Phys.}, vol.~81, no.~12,
 pp.~7880--7884, 1997.
-\bibitem{irds} International Roadmap for Devices and Systems (IRDS), ``More Moore,''
-IEEE, 2022.
+\bibitem{laux} S.~E.~Laux and F.~Stern, ``Electron states in narrow gate-induced
+channels in Si,'' \emph{Appl. Phys. Lett.}, vol.~49, no.~2, pp.~91--93, 1986.
+\bibitem{pirovano} A.~Pirovano, A.~L.~Lacaita, and A.~S.~Spinelli, ``Two-dimensional
+quantum effects in nanoscale MOSFETs,'' \emph{IEEE Trans. Electron Devices},
+vol.~49, no.~1, pp.~25--31, 2002.
+\bibitem{datta} S.~Datta, ``Nanoscale device modeling: the Green's function
+method,'' \emph{Superlattices Microstruct.}, vol.~28, no.~4, pp.~253--278, 2000.
+\bibitem{lundstrom} M.~Lundstrom, \emph{Fundamentals of Carrier Transport}, 2nd~ed.
+Cambridge, U.K.: Cambridge Univ. Press, 2000.
+\bibitem{gummel} H.~K.~Gummel, ``A self-consistent iterative scheme for
+one-dimensional steady state transistor calculations,'' \emph{IEEE Trans. Electron
+Devices}, vol.~11, no.~10, pp.~455--465, 1964.
+\bibitem{scharfetter} D.~L.~Scharfetter and H.~K.~Gummel, ``Large-signal analysis
+of a silicon Read diode oscillator,'' \emph{IEEE Trans. Electron Devices}, vol.~16,
+no.~1, pp.~64--77, 1969.
+\bibitem{bank} R.~E.~Bank, D.~J.~Rose, and W.~Fichtner, ``Numerical methods for
+semiconductor device simulation,'' \emph{IEEE Trans. Electron Devices}, vol.~30,
+no.~9, pp.~1031--1041, 1983.
+\bibitem{demari} A.~De~Mari, ``An accurate numerical steady-state one-dimensional
+solution of the p-n junction,'' \emph{Solid-State Electron.}, vol.~11, no.~1,
+pp.~33--58, 1968.
+\bibitem{vasileska} D.~Vasileska, S.~M.~Goodnick, and G.~Klimeck, \emph{Computational
+Electronics: Semiclassical and Quantum Device Modeling and Simulation}. Boca Raton,
+FL: CRC Press, 2010.
+\bibitem{sentaurus} Synopsys, Inc., \emph{Sentaurus Device User Guide}, Mountain
+View, CA, 2022.
+\bibitem{gmsh} C.~Geuzaine and J.-F.~Remacle, ``Gmsh: A 3-D finite element mesh
+generator with built-in pre- and post-processing facilities,'' \emph{Int. J.
+Numer. Methods Eng.}, vol.~79, no.~11, pp.~1309--1331, 2009.
 \end{thebibliography}
 
 \end{document}

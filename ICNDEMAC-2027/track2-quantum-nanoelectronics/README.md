@@ -7,7 +7,7 @@ Submission for **ICNDEMAC-2027, Track 2 (Nano-Electronics)**.
 
 ## Contents
 - `main.tex` — IEEEtran conference paper (edit the author block before submitting)
-- `main.pdf` — pre-built PDF (4 pages)
+- `main.pdf` — pre-built PDF (6 pages)
 - `figures/` — figures (PDF + PNG) and `results.json` with the harvested numbers
 - `reproduce_results.py` — regenerates the figures from the solver
 

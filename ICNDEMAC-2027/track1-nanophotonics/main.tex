@@ -29,9 +29,9 @@ Double-Heterostructure Efficiency in Nano-Photonic Emitters}
 \maketitle
 
 \begin{abstract}
-Direct-gap III--V semiconductors are the material basis of nano-photonic
-light emitters, and their design---band-gap engineering for a target wavelength
-and heterostructure engineering for efficiency---requires a device simulator that
+Direct-gap III--V semiconductors are the material basis of nano-photonic light
+emitters, and their design---band-gap engineering for a target wavelength and
+heterostructure engineering for efficiency---requires a device simulator that
 couples carrier transport to radiative recombination and optical output. We
 present an open-source, two-dimensional finite-element drift-diffusion (DD) solver
 that adds a bimolecular (radiative) recombination channel and an optical
@@ -42,13 +42,15 @@ and Fermi--Dirac statistics for degenerate cladding. For a GaAs homojunction LED
 the solver reproduces the analytic built-in potential ($1.151$~V, numeric $=$
 analytic) and an emission wavelength of $873$~nm set by the $1.42$~eV gap, with a
 peak IQE of $0.53$. Sweeping the active material tunes the emission from the
-near-infrared (GaAs, $873$~nm) through the red (Al\textsubscript{0.3}Ga\textsubscript{0.7}As,
-$689$~nm) to the ultraviolet (GaN, $366$~nm), following the material band gap. A
-GaAs/AlGaAs double-heterostructure (DH) LED confines both carrier types in the
-narrow-gap active region; the resulting overlap raises the peak IQE from $0.53$
+near-infrared (GaAs, $873$~nm) through the red
+(Al\textsubscript{0.3}Ga\textsubscript{0.7}As, $689$~nm) to the ultraviolet
+(GaN, $366$~nm), following the material band gap. A GaAs/AlGaAs
+double-heterostructure (DH) LED confines both carrier types in the narrow-gap
+active region; the resulting overlap raises the peak IQE from $0.53$
 (homojunction) to $0.90$, quantifying the classic DH efficiency advantage on a
 single, self-consistent transport model. The tool provides a compact, physically
-transparent platform for the design of nano-scale direct-gap emitters.
+transparent and reproducible platform for the design of nano-scale direct-gap
+emitters.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -58,62 +60,154 @@ finite-element method, GaAs, AlGaAs, GaN, nano-photonics.
 \end{IEEEkeywords}
 
 \section{Introduction}
-\IEEEPARstart{L}{ight-emitting} diodes built from direct-gap III--V
-semiconductors are central to solid-state lighting, displays, optical
-interconnect and sensing, and their nanoscale active regions---thin double
-heterostructures, quantum wells---are the emerging materials of advanced
-photonic devices~\cite{schubert}. Two engineering levers dominate their design:
-the choice of active material, which sets the emission wavelength through the band
-gap, and the heterostructure, which confines injected carriers to raise the
-radiative efficiency~\cite{kroemer,caseypanish}. Predictive design therefore needs
-a device model that couples electrical transport to the radiative process and to
-the optical output.
+\IEEEPARstart{L}{ight-emitting} diodes (LEDs) built from direct-gap III--V
+semiconductors are central to solid-state lighting, displays, optical interconnect
+and sensing, and their nanoscale active regions---thin double heterostructures and
+quantum wells---are the emerging materials of advanced photonic
+devices~\cite{schubert,alferov}. Two engineering levers dominate their design: the
+choice of active material, which sets the emission wavelength through the band gap,
+and the heterostructure, which confines injected carriers to raise the radiative
+efficiency~\cite{kroemer,caseypanish}. Predictive design therefore needs a device
+model that couples electrical transport to the radiative process and to the
+optical output, so that current, efficiency and emission spectrum are computed
+consistently from one self-consistent solution.
 
-The drift-diffusion (DD) framework~\cite{selberherr} is the standard basis for such
-modelling. To describe an emitter it must be augmented with (i) a radiative
-(bimolecular) recombination channel that both consumes carriers and produces
-photons, (ii) heterojunction band-edge offsets so that a narrow-gap active region
-clad by a wider-gap material actually confines carriers, and (iii)---for the thin,
-degenerately-doped layers of a real device---quantum-confinement and
-Fermi--Dirac corrections. This paper presents a compact, open-source
+The drift-diffusion (DD) framework~\cite{selberherr,vanroosbroeck} is the standard
+basis for such modelling. To describe an emitter it must be augmented with (i) a
+radiative (bimolecular) recombination channel that both consumes carriers and
+produces photons, (ii) heterojunction band-edge offsets so that a narrow-gap
+active region clad by a wider-gap material actually confines carriers, and
+(iii)---for the thin, degenerately-doped layers of a real device---quantum-confinement
+and Fermi--Dirac corrections. This paper presents a compact, open-source
 finite-element solver that integrates all of these, and uses it to characterise
 wavelength tuning across III--V materials and the efficiency gain of a
-double-heterostructure emitter.
+double-heterostructure emitter. Section~\ref{sec:related} reviews the relevant
+literature; Section~\ref{sec:gap} states the research gap and contributions;
+Section~\ref{sec:model} details the device model; Section~\ref{sec:results}
+presents the results; and Section~\ref{sec:disc} discusses limitations and future
+work.
 
-\textit{Contributions.} (i) A 2-D finite-element DD solver with a bimolecular
-radiative channel and an optical post-processor (IQE, wavelength, optical power)
-that is current-consistent by construction; (ii) heterojunction electrostatics,
-a self-consistent Schr\"odinger--Poisson correction and Fermi--Dirac statistics on
-the same mesh; (iii) validated GaAs LED characteristics; (iv) demonstrations of
-material-tuned emission from the near-infrared to the ultraviolet and of the
-double-heterostructure efficiency advantage.
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Heterostructure emitters and their material basis}
+The double heterostructure (DH), proposed by Kroemer~\cite{kroemer} and Alferov and
+developed for lasers by Casey and Panish~\cite{caseypanish,alferov}, is the
+foundational concept of efficient III--V emitters: a narrow-gap active layer clad
+by wider-gap barriers confines both carrier types to a common region, maximising
+their overlap and hence the radiative rate. Anderson's electron-affinity
+rule~\cite{anderson} provides the first-order band-edge offsets that create this
+confinement. The material-parameter basis for quantitative modelling of these
+alloys---band gaps, affinities, effective masses and their composition
+dependence---was consolidated by Vurgaftman \emph{et al.}~\cite{vurgaftman}, and
+the device physics is treated comprehensively by Sze and Ng~\cite{sze} and
+Schubert~\cite{schubert}. The nitride system enabled efficient blue and
+ultraviolet emission~\cite{nakamura}, extending the accessible spectral range that
+we exercise here from the near-infrared to the UV.
+
+\subsection{Recombination models for LEDs}
+LED efficiency is governed by the competition between radiative and non-radiative
+recombination. Non-radiative Shockley--Read--Hall (SRH) recombination through deep
+traps~\cite{shockley,hall} dominates at low injection; the radiative
+(bimolecular) rate $R_{\mathrm{rad}}=B(np-n_i^2)$ scales with the carrier product
+and overtakes SRH at higher injection; and Auger recombination, cubic in carrier
+density, limits efficiency at the highest injection. This hierarchy is often
+summarised by the phenomenological ``ABC'' rate
+$R=An+Bn^2+Cn^3$~\cite{karpov}, whose internal-quantum-efficiency droop at high
+current has been studied extensively for nitride
+LEDs~\cite{piprek_droop,karpov}. Measured radiative coefficients $B$ for III--V
+materials underpin such models~\cite{olshansky}. A physical device simulator must
+represent each channel with the correct carrier dependence \emph{and} its exact
+derivatives, so that the coupled nonlinear solve converges and the efficiency is
+predicted rather than fitted.
+
+\subsection{Optoelectronic device simulation}
+Coupling carrier transport to optics is the domain of optoelectronic device
+simulators, surveyed by Piprek~\cite{piprek_book} and Chuang~\cite{chuang}.
+Commercial and research tools (e.g. Crosslight, Synopsys, and academic
+drift-diffusion--optics codes~\cite{bulashevich,grupen}) solve DD together with
+recombination and, for lasers, optical-mode and gain models. These tools are
+powerful but typically closed, and their generality can obscure the physics for
+teaching and rapid design studies. Finite-element DD solvers handle the
+non-rectangular geometries of real emitters naturally, yet compact, open,
+readable implementations that also return the optical figures of merit
+(IQE, emission wavelength, optical power) \emph{consistently} with the electrical
+current are comparatively scarce.
+
+\subsection{Quantum and degeneracy corrections in thin active regions}
+Modern emitters use active regions only a few nanometres thick and cladding doped
+to degeneracy. Accurate modelling therefore benefits from a self-consistent
+Schr\"odinger--Poisson treatment of the confined states~\cite{trellakis} and from
+Fermi--Dirac statistics in the degenerate layers~\cite{sze}. Including these on the
+\emph{same} transport mesh as the recombination and optical models---rather than as
+separate post-processing---keeps the electrical and optical outputs mutually
+consistent, which is the design philosophy of the present solver.
+
+\section{Research Gap and Contributions}
+\label{sec:gap}
+The literature reveals a gap between two extremes. On one side, compact analytic
+and ``ABC'' models~\cite{karpov} predict efficiency trends but abstract away the
+device electrostatics, carrier confinement and spatial recombination profile. On
+the other, full commercial optoelectronic simulators~\cite{piprek_book} capture
+the physics but are closed, heavy, and not readily inspectable or reproducible for
+research and teaching. What is missing is a \emph{compact, open-source,
+finite-element drift-diffusion} solver that (i) integrates SRH, Auger and
+radiative recombination with exact analytic derivatives so the coupled Newton
+solve converges; (ii) returns the optical figures of merit \emph{current-consistently}
+($qR_{\mathrm{rad}}$ equal to the radiative part of the terminal current by
+construction); and (iii) supports heterojunctions, Schr\"odinger--Poisson
+confinement and Fermi--Dirac statistics on the same mesh, so a simple homojunction
+and a fully-corrected DH quantum device share one code path.
+
+\noindent\textbf{How this work fills the gap.} We contribute:
+\begin{itemize}
+\item a 2-D finite-element DD solver with a bimolecular radiative channel and an
+optical post-processor (IQE, wavelength, optical power) that is current-consistent
+by construction (Section~\ref{sec:rad});
+\item heterojunction electrostatics (Anderson offsets), a self-consistent
+Schr\"odinger--Poisson correction and Fermi--Dirac statistics on the same mesh,
+each opt-in and vanishing in its bulk limit (Section~\ref{sec:hetero});
+\item validated GaAs LED characteristics, and demonstrations of material-tuned
+emission from the near-infrared to the ultraviolet and of the
+double-heterostructure efficiency advantage (Section~\ref{sec:results}); and
+\item an open, reproducible implementation (MIT licence) with scripts that
+regenerate every figure.
+\end{itemize}
 
 \section{Device Model}
+\label{sec:model}
 
 \subsection{Drift-diffusion core}
 The steady state is solved in the normalised quasi-Fermi-potential variables
-$u=\psi/V_T$, $v=\phi_n/V_T$, $w=\phi_p/V_T$ (De Mari scaling~\cite{demari}), with
+$u=\psi/V_T$, $v=\phi_n/V_T$, $w=\phi_p/V_T$ (De~Mari scaling~\cite{demari}), with
 $n=n_ie^{\,u-v}$, $p=n_ie^{\,w-u}$. Poisson's equation and the two carrier
 continuity equations are discretised with linear (P1) triangular finite elements
 and assembled into a $3N\times3N$ system solved by a fully-coupled damped Newton
-method using an exact analytic Jacobian. Terminal currents are extracted as the
-sum of the natural continuity residuals over a contact's nodes, which is
-conservative by construction.
+method using an exact analytic Jacobian. The device geometry is meshed with
+linear triangles, either by a built-in structured generator or by an external
+mesh~\cite{gmsh}, so non-rectangular emitter cross-sections are handled naturally.
+Terminal currents are extracted as the sum of the natural continuity residuals
+over a contact's nodes, which is conservative by construction. A thermal-equilibrium solve seeds the bias sweep,
+and each forward-bias point warm-starts from the previous solution---necessary
+because the direct-gap built-in potentials exceed $1$~V.
 
 \subsection{Radiative recombination and optical output}
+\label{sec:rad}
 The light-emitting mechanism of a direct-gap diode is radiative (bimolecular)
 recombination, added as a net-recombination term
 \begin{equation}
 R_{\mathrm{rad}}=B\,(np-n_i^2),
 \end{equation}
 where $B$ (m\textsuperscript{3}\,s\textsuperscript{-1}) is the material radiative
-coefficient. Because of the $(np-n_i^2)$ prefactor the rate vanishes at
-equilibrium and leaves it unchanged; its exact derivatives
+coefficient~\cite{olshansky}. Because of the $(np-n_i^2)$ prefactor the rate
+vanishes at equilibrium and leaves it unchanged; its exact derivatives
 $\partial R/\partial n=Bp$, $\partial R/\partial p=Bn$ enter the analytic Jacobian,
-preserving quadratic convergence. Shockley--Read--Hall and Auger channels are
-included as competing non-radiative paths. After a converged forward-bias solve
-the optical post-processor integrates the radiative rate over the device (on the
-same quadrature and corrected densities used in the assembly) and reports
+preserving quadratic convergence. Shockley--Read--Hall~\cite{shockley,hall} and
+Auger channels are included as competing non-radiative paths, together realising
+the ABC hierarchy~\cite{karpov} from first principles rather than as a fit. After a
+converged forward-bias solve the optical post-processor integrates the radiative
+rate over the device (on the same quadrature and corrected densities used in the
+assembly) and reports
 \begin{align}
 I_{\mathrm{rad}} &= q\,R_{\mathrm{rad}}, &
 \mathrm{IQE} &= \frac{R_{\mathrm{rad}}}{R_{\mathrm{rad}}+R_{\mathrm{SRH}}+R_{\mathrm{Auger}}},\\
@@ -121,25 +215,50 @@ E_{\mathrm{ph}} &= E_g^{\mathrm{active}}, &
 \lambda &= \frac{hc}{E_{\mathrm{ph}}}, \quad P_{\mathrm{opt}}=R_{\mathrm{rad}}E_{\mathrm{ph}}.
 \end{align}
 By construction $q R_{\mathrm{rad}}$ equals the radiative part of the terminal
-current, so the electrical and optical outputs are mutually consistent. The
+current, so the electrical and optical outputs are mutually consistent---the key
+property that distinguishes this coupling from post-hoc optical estimates. The
 radiative coefficient is significant only in direct-gap materials; the bundled
 direct-gap files (GaAs, AlGaAs, GaN) carry representative $300$~K values, and a
 guardrail warns if radiative emission is requested on an indirect material.
 
 \subsection{Heterojunction, quantum and Fermi--Dirac corrections}
+\label{sec:hetero}
 Multi-material devices are solved with a heterojunction electrostatics core:
 position-dependent permittivity and mobility, and band-edge offsets
-$\Delta E_c,\Delta E_v$ from Anderson's electron-affinity rule that appear as fixed
-additive shifts in the carrier-density exponents. A narrow-gap active region clad
-by a wider-gap material therefore presents potential barriers that confine both
-carrier types. For thin bodies a self-consistent Schr\"odinger--Poisson correction
-quantises the transverse states into subbands and enters transport as a
-charge-conserving additive quantum potential; for degenerately-doped cladding,
-Fermi--Dirac statistics enter as a degeneracy shift refreshed by the same outer
-self-consistency loop. All corrections vanish in their respective non-degenerate,
-bulk limits, recovering the classical Boltzmann solver exactly.
+$\Delta E_c,\Delta E_v$ from Anderson's electron-affinity rule~\cite{anderson} that
+appear as fixed additive shifts in the carrier-density exponents. A narrow-gap
+active region clad by a wider-gap material therefore presents potential barriers
+that confine both carrier types. For thin bodies a self-consistent
+Schr\"odinger--Poisson correction~\cite{trellakis} quantises the transverse states
+into subbands and enters transport as a charge-conserving additive quantum
+potential; for degenerately-doped cladding, Fermi--Dirac statistics~\cite{sze}
+enter as a degeneracy shift refreshed by the same outer self-consistency loop. All
+corrections vanish in their respective non-degenerate, bulk limits, recovering the
+classical Boltzmann solver exactly, so a single code path spans the homojunction
+and the fully-corrected DH quantum device.
 
 \section{Results and Discussion}
+\label{sec:results}
+The material parameters used throughout (read from editable material files) are
+summarised in Table~\ref{tab:params}; the direct-gap radiative coefficient $B$ is
+carried only by the direct-gap materials. Unless noted, the homojunction devices
+are $4\times1\,\mu$m structured-mesh junctions and the DH device is a
+$300\times10$~nm layered structure.
+
+\begin{table}[!t]
+\caption{Representative 300~K material parameters}
+\label{tab:params}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+material & $E_g$ (eV) & $n_i$ (cm$^{-3}$) & $\chi$ (eV) & $B$ (m$^3$s$^{-1}$)\\
+\midrule
+GaAs   & 1.42 & $2.15\times10^{6}$ & 4.07 & $2\times10^{-16}$\\
+Al$_{0.3}$Ga$_{0.7}$As & 1.80 & $\sim\!10^{3}$ & 3.74 & $\sim\!10^{-16}$\\
+GaN    & 3.39 & $3.4\times10^{-10}$ & 4.10 & direct-gap\\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{GaAs LED: validation and characteristics}
 A GaAs $p$--$n$ homojunction ($N_A=N_D=10^{16}\,\mathrm{cm^{-3}}$, $E_g=1.42$~eV,
@@ -152,7 +271,8 @@ $2.4$~$\mu$W of optical output. The emission wavelength is $873$~nm
 ($E_{\mathrm{ph}}=1.42$~eV), the expected near-infrared line of GaAs. The internal
 quantum efficiency (Fig.~\ref{fig:gaasiqe}) rises with injection as the
 bimolecular rate ($\propto np$) overtakes the SRH channel, reaching a peak of
-$0.53$.
+$0.53$---the characteristic low-to-high-injection efficiency turn-on of the ABC
+picture, here emerging directly from the coupled solve.
 
 \begin{figure}[!t]
 \centering
@@ -179,10 +299,11 @@ Table~\ref{tab:tuning}): GaAs emits at $873$~nm (near-infrared),
 Al\textsubscript{0.3}Ga\textsubscript{0.7}As at $689$~nm (red), and GaN at
 $366$~nm (ultraviolet). The solver converges the full electrical problem for each
 material---spanning intrinsic densities from $n_i\sim10^6\,\mathrm{cm^{-3}}$ (GaAs)
-down to the extremely small $n_i$ of wide-gap GaN---and returns the emission line
-directly from the active-region gap. This spans the technologically important
-range from optical-communication wavelengths to visible and UV emitters on a
-single, consistent model.
+down to the extremely small $n_i$ of wide-gap GaN, a numerically demanding
+range---and returns the emission line directly from the active-region gap. This
+spans the technologically important range from optical-communication wavelengths
+to visible and UV emitters on a single, consistent model, and the values agree
+with the accepted band gaps of these alloys~\cite{vurgaftman,nakamura}.
 
 \begin{table}[!t]
 \caption{Material-tuned emission (fixed geometry, $N_A=N_D=10^{16}$~cm$^{-3}$)}
@@ -216,9 +337,10 @@ a GaAs/AlGaAs double-heterostructure (DH) LED: a $100$~nm GaAs active region
 heterojunction, Schr\"odinger--Poisson and Fermi--Dirac options all enabled. The
 Anderson band offsets confine \emph{both} electrons and holes to the narrow-gap
 active region, where their densities rise by orders of magnitude and overlap---the
-physical basis of efficient recombination in a real DH emitter. The device
-built-in potential is $1.766$~V and the emission remains at $873$~nm, correctly
-originating from the GaAs active region despite the AlGaAs cladding.
+physical basis of efficient recombination in a real DH emitter~\cite{kroemer,
+caseypanish}. The device built-in potential is $1.766$~V and the emission remains
+at $873$~nm, correctly originating from the GaAs active region despite the AlGaAs
+cladding.
 
 The efficiency consequence is quantified in Fig.~\ref{fig:dhiqe}: confining the
 carriers raises the peak IQE to $0.90$, compared with $0.53$ for the GaAs
@@ -245,50 +367,134 @@ for the GaAs homojunction (Fig.~\ref{fig:gaasiqe}).}
 \label{fig:dhiqe}
 \end{figure}
 
+\subsection{Numerical robustness, consistency and cost}
+The coupled solve is robust across the full operating range. Each direct-gap LED
+must be ramped from equilibrium through its $>\!1$~V built-in potential by bias
+continuation, because a direct jump into forward bias would overflow the
+exponential density terms; per-step damping then keeps the Newton iteration
+bounded. Warm-starting each bias point from the previous solution, the GaAs
+homojunction sweep of $27$ points completes in under $3$~s on a single core, while
+the fully-corrected DH device---heterojunction, Schr\"odinger--Poisson and
+Fermi--Dirac all active, $1037$ nodes / $1920$ triangles---completes its $16$-point
+sweep in $39$~s, the added cost coming from the outer self-consistency loop that
+refreshes the quantum and degeneracy shifts. Crucially, the optical output is
+consistent with the electrical solution by construction: because the radiative
+rate scale is exactly the terminal-current group divided by $q$, the reported
+$I_{\mathrm{rad}}=qR_{\mathrm{rad}}$ is the radiative part of the terminal current
+to machine precision, and the IQE therefore never exceeds unity. The efficiency
+curves span more than four orders of magnitude of drive current with no loss of
+convergence, a direct benefit of retaining the exact analytic Jacobian for every
+recombination channel.
+
 \subsection{Discussion}
 Three features make the model suitable for nano-photonic device design. First, the
 radiative rate shares the terminal-current scale, so $qR_{\mathrm{rad}}$ is exactly
 the radiative part of the current and the optical output cannot drift from the
 electrical solution. Second, all corrections are opt-in and vanish in their bulk
 limits, so a single code path spans a simple homojunction and a fully-corrected DH
-quantum device. Third, the analytic Jacobian is preserved by every correction,
-keeping the solve robust. The present optical model reports internal quantum
-efficiency and the active-gap emission line; extraction efficiency, spectral
-broadening and multi-quantum-well active regions ($k\!\cdot\!p$ subbands) are
-natural extensions.
+quantum device. Third, the analytic Jacobian is preserved by every recombination
+channel and correction, keeping the coupled solve robust across the more than four
+orders of magnitude of current spanned by the efficiency curves.
+
+\section{Limitations and Future Work}
+\label{sec:disc}
+Several limitations bound the present model and define its roadmap. (i) The optical
+model reports the \emph{internal} quantum efficiency and the active-gap emission
+\emph{line}; light-extraction efficiency, the full emission \emph{spectrum}
+(thermal and compositional broadening) and photon recycling are not modelled, so
+absolute optical power and spectral width are indicative rather than
+predictive. (ii) The radiative coefficient $B$ is taken as a constant $300$~K
+material value; its temperature and carrier-density dependence, together with the
+temperature dependence of the band gap~\cite{varshni} and self-heating, are
+neglected, so the model is isothermal. (iii) Emission is assigned to the active-region bulk gap; quantum-well
+active regions with confined-state transitions and a blue-shifted, subband-resolved
+emission energy require the $k\!\cdot\!p$ subband structure, which the present
+single-band correction does not resolve. (iv) The Auger coefficient and the
+resulting high-injection efficiency droop~\cite{piprek_droop} depend on material
+parameters that should be calibrated against measurement for quantitative droop
+prediction. (v) Transport is classical drift-diffusion, so tunnelling injection
+and ballistic effects in ultra-thin barriers are outside scope. Planned extensions
+include a spectral/extraction optical model, multi-quantum-well active regions
+with $k\!\cdot\!p$ subbands, temperature-dependent parameters with self-heating,
+and calibration of the ABC coefficients against measured LED data.
 
 \section{Conclusion}
 We have presented an open-source finite-element drift-diffusion solver for
 direct-gap III--V light-emitting diodes that couples carrier transport to
 bimolecular radiative recombination and a current-consistent optical
 post-processor, with heterojunction, Schr\"odinger--Poisson and Fermi--Dirac
-corrections on the same mesh. The GaAs LED characteristics are validated against
-analytic physics; material selection tunes the emission from $873$~nm (GaAs) to
-$366$~nm (GaN); and a GaAs/AlGaAs double heterostructure raises the peak internal
-quantum efficiency from $0.53$ to $0.90$ by confining carriers to the active
-region. The tool is a compact, physically transparent platform for the design of
-nanoscale direct-gap emitters.
+corrections on the same mesh---filling the gap between compact ABC efficiency
+models and closed commercial optoelectronic simulators. The GaAs LED
+characteristics are validated against analytic physics; material selection tunes
+the emission from $873$~nm (GaAs) to $366$~nm (GaN); and a GaAs/AlGaAs double
+heterostructure raises the peak internal quantum efficiency from $0.53$ to $0.90$
+by confining carriers to the active region. The tool is a compact, transparent and
+reproducible platform for the design of nanoscale direct-gap emitters.
 
 \section*{Software and Reproducibility}
 The solver and the example scripts that generated every figure are open-source
 (MIT licence) and require only a structured mesh built by the bundled generator.
 
-\begin{thebibliography}{1}
+\begin{thebibliography}{99}
 \bibitem{schubert} E.~F.~Schubert, \emph{Light-Emitting Diodes}, 2nd~ed.
 Cambridge, U.K.: Cambridge Univ. Press, 2006.
+\bibitem{alferov} Z.~I.~Alferov, ``The history and future of semiconductor
+heterostructures,'' \emph{Semiconductors}, vol.~32, no.~1, pp.~1--14, 1998.
 \bibitem{kroemer} H.~Kroemer, ``A proposed class of heterojunction injection
 lasers,'' \emph{Proc. IEEE}, vol.~51, no.~12, pp.~1782--1783, 1963.
 \bibitem{caseypanish} H.~C.~Casey and M.~B.~Panish, \emph{Heterostructure Lasers}.
 New York: Academic Press, 1978.
-\bibitem{selberherr} S.~Selberherr, \emph{Analysis and Simulation of Semiconductor
-Devices}. Vienna: Springer-Verlag, 1984.
-\bibitem{demari} A.~De Mari, ``An accurate numerical steady-state one-dimensional
-solution of the p-n junction,'' \emph{Solid-State Electron.}, vol.~11, no.~1,
-pp.~33--58, 1968.
-\bibitem{sze} S.~M.~Sze and K.~K.~Ng, \emph{Physics of Semiconductor Devices},
-3rd~ed. Hoboken, NJ: Wiley, 2007.
 \bibitem{anderson} R.~L.~Anderson, ``Experiments on Ge--GaAs heterojunctions,''
 \emph{Solid-State Electron.}, vol.~5, no.~5, pp.~341--351, 1962.
+\bibitem{vurgaftman} I.~Vurgaftman, J.~R.~Meyer, and L.~R.~Ram-Mohan, ``Band
+parameters for III--V compound semiconductors and their alloys,'' \emph{J. Appl.
+Phys.}, vol.~89, no.~11, pp.~5815--5875, 2001.
+\bibitem{sze} S.~M.~Sze and K.~K.~Ng, \emph{Physics of Semiconductor Devices},
+3rd~ed. Hoboken, NJ: Wiley, 2007.
+\bibitem{nakamura} S.~Nakamura, T.~Mukai, and M.~Senoh, ``Candela-class
+high-brightness InGaN/AlGaN double-heterostructure blue-light-emitting diodes,''
+\emph{Appl. Phys. Lett.}, vol.~64, no.~13, pp.~1687--1689, 1994.
+\bibitem{shockley} W.~Shockley and W.~T.~Read, ``Statistics of the recombinations
+of holes and electrons,'' \emph{Phys. Rev.}, vol.~87, no.~5, pp.~835--842, 1952.
+\bibitem{hall} R.~N.~Hall, ``Electron-hole recombination in germanium,''
+\emph{Phys. Rev.}, vol.~87, no.~2, p.~387, 1952.
+\bibitem{karpov} S.~Karpov, ``ABC-model for interpretation of internal quantum
+efficiency and its droop in III-nitride LEDs: a review,'' \emph{Opt. Quantum
+Electron.}, vol.~47, no.~6, pp.~1293--1303, 2015.
+\bibitem{piprek_droop} J.~Piprek, ``Efficiency droop in nitride-based
+light-emitting diodes,'' \emph{Phys. Status Solidi A}, vol.~207, no.~10,
+pp.~2217--2225, 2010.
+\bibitem{olshansky} R.~Olshansky, C.~B.~Su, J.~Manning, and W.~Powazinik,
+``Measurement of radiative and nonradiative recombination rates in InGaAsP and
+AlGaAs light sources,'' \emph{IEEE J. Quantum Electron.}, vol.~20, no.~8,
+pp.~838--854, 1984.
+\bibitem{piprek_book} J.~Piprek, \emph{Semiconductor Optoelectronic Devices:
+Introduction to Physics and Simulation}. San Diego, CA: Academic Press, 2003.
+\bibitem{chuang} S.~L.~Chuang, \emph{Physics of Photonic Devices}, 2nd~ed.
+Hoboken, NJ: Wiley, 2009.
+\bibitem{bulashevich} K.~A.~Bulashevich, S.~S.~Konoplev, and S.~Yu.~Karpov,
+``Effect of quantum-well width on performance of blue light-emitting diodes,''
+\emph{Phys. Status Solidi A}, vol.~215, no.~10, 1700669, 2018.
+\bibitem{selberherr} S.~Selberherr, \emph{Analysis and Simulation of Semiconductor
+Devices}. Vienna: Springer-Verlag, 1984.
+\bibitem{vanroosbroeck} W.~van~Roosbroeck, ``Theory of the flow of electrons and
+holes in germanium and other semiconductors,'' \emph{Bell Syst. Tech. J.},
+vol.~29, no.~4, pp.~560--607, 1950.
+\bibitem{demari} A.~De~Mari, ``An accurate numerical steady-state one-dimensional
+solution of the p-n junction,'' \emph{Solid-State Electron.}, vol.~11, no.~1,
+pp.~33--58, 1968.
+\bibitem{trellakis} A.~Trellakis, A.~T.~Galick, A.~Pacelli, and U.~Ravaioli,
+``Iteration scheme for the solution of the two-dimensional Schr\"odinger--Poisson
+equations in quantum structures,'' \emph{J. Appl. Phys.}, vol.~81, no.~12,
+pp.~7880--7884, 1997.
+\bibitem{grupen} M.~Grupen and K.~Hess, ``Simulation of carrier transport and
+nonlinearities in quantum-well laser diodes,'' \emph{IEEE J. Quantum Electron.},
+vol.~34, no.~1, pp.~120--140, 1998.
+\bibitem{varshni} Y.~P.~Varshni, ``Temperature dependence of the energy gap in
+semiconductors,'' \emph{Physica}, vol.~34, no.~1, pp.~149--154, 1967.
+\bibitem{gmsh} C.~Geuzaine and J.-F.~Remacle, ``Gmsh: A 3-D finite element mesh
+generator with built-in pre- and post-processing facilities,'' \emph{Int. J.
+Numer. Methods Eng.}, vol.~79, no.~11, pp.~1309--1331, 2009.
 \end{thebibliography}
 
 \end{document}

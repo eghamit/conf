@@ -26,7 +26,7 @@ Each paper is a standalone IEEEtran (`conference`) document. From a paper folder
 pdflatex main.tex && pdflatex main.tex     # run twice for cross-references
 ```
 
-or upload the folder to Overleaf (IEEEtran is built in). A pre-built `main.pdf`
+or upload the folder to Overleaf (IEEEtran is built in). A pre-built `main.pdf` (6 pages)
 is included in each folder.
 
 ## Reproducing the results

@@ -1,0 +1,54 @@
+{
+  "gaas_homojunction": {
+    "Eg_eV": 1.42,
+    "ni_cm3": 2150000.0,
+    "B_m3_s": 2e-16,
+    "Vbi_numeric_V": 1.1511,
+    "Vbi_analytic_V": 1.151,
+    "wavelength_nm": 873.1,
+    "photon_energy_eV": 1.42,
+    "peak_IQE": 0.5314,
+    "I_at_1.3V_A": 5.3671682433746525e-05,
+    "Irad_at_1.3V_A": 1.6801128818495879e-06,
+    "Popt_at_1.3V_W": 2.385760292226415e-06,
+    "sweep_time_s": 2.89,
+    "nodes": 637
+  },
+  "wavelength_tuning": [
+    {
+      "material": "gaas",
+      "Eg_eV": 1.42,
+      "wavelength_nm": 873.1,
+      "IQE": 0.022
+    },
+    {
+      "material": "algaas",
+      "Eg_eV": 1.8,
+      "wavelength_nm": 688.8,
+      "IQE": 0.0153
+    },
+    {
+      "material": "gan",
+      "Eg_eV": 3.39,
+      "wavelength_nm": 365.7,
+      "IQE": 0.0001
+    }
+  ],
+  "dh_quantum_led": {
+    "Vbi_V": 1.7661,
+    "subband_energies_eV": [
+      -1.0315,
+      -0.9714,
+      -0.7896,
+      -0.4786
+    ],
+    "wavelength_nm": 873.1,
+    "photon_energy_eV": 1.42,
+    "peak_IQE": 0.8969,
+    "Lambda_min": -3.99,
+    "Lambda_max": 0.087,
+    "sweep_time_s": 39.13,
+    "nodes": 1037,
+    "elements": 1920
+  }
+}
